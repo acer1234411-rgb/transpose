@@ -61,7 +61,10 @@ interface PlaylistItem {
 }
 
 export default function App() {
-  const [url, setUrl] = useState('/music/hongsi.mp4');
+  const R2 = 'https://pub-cb7f6167a48441ff8887d8509ae0a500.r2.dev/G-Transpose';
+  const r2 = (filename: string) => `${R2}/${encodeURIComponent(filename)}`;
+
+  const [url, setUrl] = useState(r2('hongsi.mp4'));
   const [originalKey, setOriginalKey] = useState('C');
   const [targetKey, setTargetKey] = useState('G');
   const [chords, setChords] = useState<string[]>([]);
@@ -70,7 +73,7 @@ export default function App() {
   const [pendingPlay, setPendingPlay] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [songTitle, setSongTitle] = useState('아침이슬 (Morning Dew)');
+  const [songTitle, setSongTitle] = useState('01 홍시');
   const [playlistSearch, setPlaylistSearch] = useState('');
   const [manualSearch, setManualSearch] = useState('');
   const [playbackRate, setPlaybackRate] = useState(1.0);
@@ -94,10 +97,6 @@ export default function App() {
   // Prevents the url-change useEffect from overwriting userTranspose with 0.
   const pendingTransposeRef = useRef<number | null>(null);
   
-  const R2 = 'https://pub-cb7f6167a48441ff8887d8509ae0a500.r2.dev/G-Transpose';
-  // 한글·공백 파일명을 URL에서 안전하게 처리
-  const r2 = (filename: string) => `${R2}/${encodeURIComponent(filename)}`;
-
   const INITIAL_PLAYLIST: PlaylistItem[] = [
     { id: 'p01', title: '01 홍시', url: r2('hongsi.mp4'), originalKey: 'C', chords: ['C', 'F', 'G', 'C', 'Am', 'Dm', 'G', 'C'] },
     { id: 'p02', title: '02 남자는 말합니다', url: r2('man.mkv'), originalKey: 'C', chords: [] },
@@ -109,7 +108,6 @@ export default function App() {
     { id: 'p08', title: '08 10월의 어느 멋진 날에', url: r2('10월의어느멋진날에.mp4'), originalKey: 'C', chords: [] },
     { id: 'p09', title: '09 칠갑산', url: r2('주병선 - 칠갑산 MR.mp4'), originalKey: 'C', chords: [] },
     { id: 'p10', title: '10 내 사랑 내 곁에', url: r2('김현식 - 내 사랑 내 곁에 MR.mp4'), originalKey: 'C', chords: [] },
-    { id: 'p10-1', title: '10-1 내사랑내곁에', url: 'https://www.youtube.com/watch?v=kVLfDxAsLsY', originalKey: 'C', chords: [] },
     { id: 'p11', title: '11 약속', url: r2('백년의약속 김종환 G키 하모니카 악보 영상.mp4'), originalKey: 'C', chords: [] },
     { id: 'p12', title: '12 사랑을 위하여', url: r2('김종환 - 사랑을 위하여 MR.mp4'), originalKey: 'C', chords: [] },
     { id: 'p13', title: '13 인연', url: r2('이선희 - 인연 MR.mp4'), originalKey: 'C', chords: [] },
@@ -133,7 +131,7 @@ export default function App() {
     { id: 'p31', title: '31 등대지기', url: '', originalKey: 'C', chords: [] },
     { id: 'p32', title: '32 나 그대에게 모두 드리리', url: '', originalKey: 'C', chords: [] },
     { id: 'p33', title: '33 노들강변', url: '', originalKey: 'C', chords: [] },
-    { id: 'p34', title: '34 아침이슬', url: 'https://www.youtube.com/watch?v=0_u_mC4u7X4', originalKey: 'C', chords: ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'C'] },
+    { id: 'p34', title: '34 아침이슬', url: '', originalKey: 'C', chords: [] },
     { id: 'p35', title: '35 뜨거운 안녕', url: '', originalKey: 'C', chords: [] },
     { id: 'p36', title: '36 내 마음 별과 같이', url: '', originalKey: 'C', chords: [] },
     { id: 'p37', title: '37 남자라는 이유로', url: '', originalKey: 'C', chords: [] },
@@ -433,6 +431,7 @@ export default function App() {
   // Reset on song change
   useEffect(() => {
     stopPitched();
+    setError(null); // 곡 변경 시 에러 초기화
     audioBufferRef.current = null;
     stInstanceRef.current = null;
     stFilterRef.current = null;

@@ -1,0 +1,6 @@
+{
+  "name": "G-코드로 변환하는 자동 반주기",
+  "description": "유튜브 반주 영상을 원하는 키(기본 G코드)로 변환하여 코드와 함께 즐기는 자동 반주 도우미입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["AI Chord Analysis", "Key Transposition"]
+}

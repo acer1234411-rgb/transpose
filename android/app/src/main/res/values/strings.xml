@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">G-Transpose</string>
+    <string name="title_activity_main">G-Transpose</string>
+    <string name="package_name">com.gtranspose.app</string>
+    <string name="custom_url_scheme">com.gtranspose.app</string>
+</resources>

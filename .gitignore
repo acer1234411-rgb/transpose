@@ -1,0 +1,16 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# 대용량 동영상/바이너리 파일 제외 (Cloudflare R2에 저장됨)
+public/music/*.mp4
+public/music/*.mkv
+public/music/*.webm
+public/music/*.exe
+public/music/*.avi
+public/music/*.mov

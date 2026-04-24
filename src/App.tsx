@@ -109,10 +109,10 @@ const ChordDisplay = React.memo(({ chords, currentTime, transposeAmount }: any) 
             <div
               key={idx}
               className={cn(
-                "flex-shrink-0 min-w-[64px] px-4 h-14 flex flex-col items-center justify-center rounded-2xl transition-all",
+                "flex-shrink-0 w-[70px] h-14 flex flex-col items-center justify-center rounded-2xl transition-colors",
                 isActive
-                  ? "bg-indigo-500 text-white shadow-xl shadow-indigo-500/40 border border-indigo-400 scale-110 z-10"
-                  : "bg-black/40 text-white/70 border border-white/5"
+                  ? "bg-green-500/20 border border-green-500/30 text-green-400"
+                  : "bg-black/40 border border-white/5 text-white/70"
               )}
             >
               <span className="text-xl font-black leading-none">{transposeChord(chord, transposeAmount)}</span>
@@ -161,35 +161,73 @@ export default function App() {
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
   const playerContainerRef = useRef<HTMLDivElement>(null);
 
-  // Detect mobile landscape for auto-fullscreen
+  // [Smart Landscape] 가로/세로 자동 전환 및 전체 화면 제어 통합 로직
   useEffect(() => {
-    const checkOrientation = () => {
-      const isLandscape = window.innerWidth > window.innerHeight;
-      const isMobile = window.innerWidth < 1024;
-      setIsMobileLandscape(isLandscape && isMobile);
+    let timeoutId: number;
+
+    const handleOrientation = async () => {
+      // 딜레이를 주어 브라우저가 회전된 크기를 정확히 파악하게 함
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(async () => {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const isPortrait = !isLandscape;
+        
+        setIsMobileLandscape(isLandscape);
+
+        const container = playerContainerRef.current;
+        const video = document.querySelector('video');
+        
+        if (!playing) return;
+
+        if (isLandscape) {
+          try {
+            if (!document.fullscreenElement && !(video as any)?.webkitDisplayingFullscreen) {
+              if (video && (video as any).webkitEnterFullscreen) {
+                (video as any).webkitEnterFullscreen();
+              } else if (container) {
+                if (container.requestFullscreen) await container.requestFullscreen();
+                else if ((container as any).webkitRequestFullscreen) await (container as any).webkitRequestFullscreen();
+              }
+            }
+          } catch (e) {
+            console.warn("Fullscreen request failed", e);
+          }
+        } else if (isPortrait) {
+          // 세로 모드 복구: 더 강력하게 모든 전체화면 종료 시도
+          try {
+            if (document.fullscreenElement) {
+              if (document.exitFullscreen) await document.exitFullscreen();
+            }
+            // iOS 비디오 전체화면 강제 종료
+            if (video && (video as any).webkitDisplayingFullscreen) {
+              if ((video as any).webkitExitFullscreen) (video as any).webkitExitFullscreen();
+            }
+          } catch (e) {}
+        }
+      }, 250); // 250ms 딜레이
     };
 
-    window.addEventListener('resize', checkOrientation);
-    checkOrientation();
-    return () => window.removeEventListener('resize', checkOrientation);
-  }, []);
+    // 전체화면 변경 이벤트 감시 (수동 종료 대응)
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        if (!isLandscape) setIsMobileLandscape(false);
+      }
+    };
 
-  // Auto-fullscreen when rotating to landscape
-  useEffect(() => {
-    if (isMobileLandscape && playing && playerContainerRef.current) {
-      try {
-        if (!document.fullscreenElement) {
-          playerContainerRef.current.requestFullscreen().catch(() => {});
-        }
-      } catch (e) {}
-    } else if (!isMobileLandscape && document.fullscreenElement) {
-      try {
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {});
-        }
-      } catch (e) {}
-    }
-  }, [isMobileLandscape, playing]);
+    window.addEventListener('resize', handleOrientation);
+    window.addEventListener('orientationchange', handleOrientation);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    
+    return () => {
+      window.removeEventListener('resize', handleOrientation);
+      window.removeEventListener('orientationchange', handleOrientation);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+      window.clearTimeout(timeoutId);
+    };
+  }, [playing]);
 
   const playerRef = useRef<HTMLVideoElement>(null);
 
@@ -1490,9 +1528,9 @@ export default function App() {
             )}
 
             {(!playing || playerRef.current?.paused) && (
-              <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10 cursor-pointer" onClick={() => playerRef.current?.play()}>
-                <div className="w-24 h-24 bg-indigo-500/40 border border-white/30 rounded-full flex items-center justify-center backdrop-blur-xl hover:scale-110 transition-all shadow-2xl shadow-indigo-500/40">
-                  <Play className="w-12 h-12 fill-white ml-2 text-white" />
+              <div className="absolute inset-0 bg-black/10 flex items-center justify-center z-10 cursor-pointer" onClick={() => playerRef.current?.play()}>
+                <div className="w-12 h-12 bg-white/20 border border-white/40 rounded-full flex items-center justify-center backdrop-blur-md hover:scale-110 transition-all shadow-xl">
+                  <Play className="w-5 h-5 fill-white ml-1 text-white" />
                 </div>
               </div>
             )}
@@ -1532,23 +1570,28 @@ export default function App() {
                         "bg-white/5 border-white/10 text-white/30"
                       )}
                     >
-                      <span className={cn(k === originalKey ? "text-sm" : "text-xs")}>{k}</span>
-                      {k === originalKey && <span className="text-[6px] opacity-70 uppercase tracking-tighter">ORIG</span>}
+                      <span className={cn(
+                        "text-[13px] transition-colors",
+                        k === 'G' && playing && currentVideoKey === 'G' && "animate-pulse text-green-400"
+                      )}>
+                        {k}
+                      </span>
+                      {k === originalKey && <span className="text-[7px] opacity-70 uppercase tracking-tighter mt-0.5">ORIG</span>}
                     </button>
                   ))}
                 </div>
               </div>
                 
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Sound:</span>
+                  <span className="text-[11px] font-black text-white/40 uppercase tracking-widest">Sound:</span>
                   <span className={cn(
-                    "text-xs font-black",
+                    "text-sm font-black",
                     currentVideoKey === 'G' ? "text-green-500" : "text-orange-500"
                   )}>
                     {currentVideoKey}
                   </span>
                   {currentVideoKey === 'G' && (
-                    <span className="ml-2 text-[9px] font-black text-green-500/80 tracking-widest px-1.5 py-0.5 rounded border border-green-500/30">
+                    <span className="ml-2 text-[11px] font-black text-green-500/80 tracking-widest px-2 py-1 rounded border border-green-500/30 bg-green-500/5">
                       G-MODE
                     </span>
                   )}
@@ -1558,8 +1601,8 @@ export default function App() {
 
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-white/90">Transpose</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black uppercase tracking-widest text-white/60">Transpose</span>
                   <span className="text-[10px] text-white/30 font-bold uppercase tracking-tight">(조옮김 - 키 변경)</span>
                 </div>
                 <div className={cn(
@@ -1653,9 +1696,9 @@ export default function App() {
             {/* ── PITCH (cents, secondary) ── */}
             <div className="opacity-60 hover:opacity-100 transition-opacity">
               <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white/50">Pitch</span>
-                  <span className="text-[10px] text-white/30">(미세 튜닝 - cents)</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black uppercase tracking-widest text-white/60">Pitch</span>
+                  <span className="text-[10px] text-white/30 font-bold uppercase tracking-tight">(미세 튜닝 - cents)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={cn(

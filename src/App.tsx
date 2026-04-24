@@ -813,7 +813,7 @@ export default function App() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const attempts = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+      const attempts = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-2.0-flash', 'gemini-flash-latest'];
       let responseText = '';
       let usedModel = '';
 
@@ -925,7 +925,7 @@ export default function App() {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       const cleanTitle = item.title.replace(/^\d+\s*/, '');
-      const attempts = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-flash-latest'];
+      const attempts = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-flash-latest'];
       let responseText = '';
 
       for (const modelName of attempts) {
@@ -963,7 +963,7 @@ export default function App() {
     setDetectingAll(true);
     const genAI = new GoogleGenerativeAI(apiKey);
     const targets = playlist.filter(item => item.url);
-    const attempts = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-flash-latest'];
+    const attempts = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-flash-latest'];
     for (const item of targets) {
       try {
         const cleanTitle = item.title.replace(/^\d+\s*/, '');

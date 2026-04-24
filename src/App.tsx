@@ -133,7 +133,7 @@ export default function App() {
     return `${baseUrl}/${encodeURIComponent(filename)}`;
   };
 
-  const [url, setUrl] = useState(r2('hongsi.mp4'));
+  const [url, setUrl] = useState(r2('01 등대지기 양희은 MR.mp4'));
   const [originalKey, setOriginalKey] = useState('C');
   const [targetKey, setTargetKey] = useState('G');
   const [chords, setChords] = useState<string[]>([]);
@@ -142,7 +142,7 @@ export default function App() {
   const [pendingPlay, setPendingPlay] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [songTitle, setSongTitle] = useState('01 홍시');
+  const [songTitle, setSongTitle] = useState('01 등대지기 양희은');
   const [playlistSearch, setPlaylistSearch] = useState('');
   const [manualSearch, setManualSearch] = useState('');
   const [playbackRate, setPlaybackRate] = useState(1.0);

@@ -1104,13 +1104,13 @@ export default function App() {
             </div>
 
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40" />
               <input
                 type="text"
                 placeholder="곡 제목 또는 가수 검색..."
                 value={playlistSearch}
                 onChange={(e) => setPlaylistSearch(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-3 text-xs text-white/70 focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-white/10"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-3 text-xs text-white/90 focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-white/30"
               />
             </div>
           </div>

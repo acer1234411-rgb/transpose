@@ -710,194 +710,30 @@ export default function App() {
     setLoading(true);
     setAnalysisResult(null);
     setError(null);
-
-    try {
-      // SANITIZE: Trim the key to avoid hidden spaces
-      const apiKey = (userApiKey || import.meta.env.VITE_GEMINI_API_KEY || '').trim();
-
-      if (!apiKey || apiKey.length < 20) {
-        setError("💡 AI 분석을 시작하려면 올바른 Gemini API 키가 필요합니다. 하단 설정에서 키를 확인해주세요.");
-        setShowApiSettings(true);
-        setLoading(false);
-        return;
-      }
-
-      // Try multiple Gemini models in order from fastest/most stable to premium.
-      const attempts = [
-        { model: 'gemini-2.0-flash', apiVersion: 'v1beta' },    // Next gen (Fastest)
-        { model: 'gemini-flash-latest', apiVersion: 'v1beta' }, // Most stable alias
-        { model: 'gemini-pro-latest', apiVersion: 'v1beta' },   // High quality alias
-        { model: 'gemini-1.5-flash', apiVersion: 'v1beta' }     // Rock solid stability
-      ];
-
-      let lastError = null;
-
-      let base64Image = null;
-
-      // Determine target URL for image capture
-      let targetUrl = normalizedInput;
-      const playlistMatch = playlist.find(p => p.title === normalizedInput || p.url === normalizedInput);
-      if (playlistMatch && playlistMatch.url) {
-        targetUrl = playlistMatch.url;
-      } else if (url && (normalizedInput === songTitle || normalizedInput === url || normalizedInput.includes(songTitle))) {
-        targetUrl = url;
-      }
-
-      if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
-        base64Image = await getYoutubeThumbnailBase64(targetUrl);
-        if (base64Image) console.log('YouTube thumbnail captured for AI analysis');
-      } else if (playerRef.current && (targetUrl === url || targetUrl === songTitle)) {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = playerRef.current.videoWidth || 640;
-          canvas.height = playerRef.current.videoHeight || 360;
-          const ctx = canvas.getContext('2d');
-          if (ctx && canvas.width > 0) {
-            ctx.drawImage(playerRef.current, 0, 0, canvas.width, canvas.height);
-            base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-            console.log('Video frame captured for AI analysis');
-          }
-        } catch (e) {
-          console.warn('Failed to capture video frame', e);
-        }
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const targetTitle = playlistMatch ? playlistMatch.title : (songTitle || normalizedInput);
-      const promptText = `분석 대상: ${targetTitle}\n당신은 하모니카 및 색소폰 연주자를 위한 전문 음악 AI 비서입니다.\n\n[분석 지침]\n1. 먼저 전달된 썸네일 또는 캡처된 악보 이미지를 주의 깊게 분석하세요.\n2. 이미지 속 높은음자리표 옆의 조표(#, b)를 먼저 확인하고, 그 결과로 원곡 키(Original Key)를 판정하세요.\n3. 대표적인 코드 진행이 아닌, 곡 전체의 흐름을 알 수 있도록 마디별 또는 구절별 상세 코드 진행(최소 16개 이상)을 작성하세요.\n4. 분석 요약(summary) 작성 방법:\n  - 먼저 이미지 정보를 기준으로 키를 판단했음을 분명히 쓰세요.\n  - ⚠️ 중요: 샵(#)이나 플랫(b)이 하나도 없다면 원곡은 'C키'입니다! (조표가 없다고 해서 악보가 없는 것이 아닙니다.)\n  - 이미지를 보고 판단했다면 그 근거를 자연스럽게 설명하세요. (예: "화면의 악보를 보니 조표에 #이나 b가 없으므로 원곡은 C키 입니다." 또는 "악보에 #이 1개 있어 G키로 판단했습니다.")\n  - 이미지가 보이지 않거나 전혀 읽을 수 없을 때만 제목을 사용해 추정했다고 명시하세요.\n  - 요약의 마지막 줄에는 반드시 다음 문장을 추가하되, '[원곡 키]' 부분을 실제 판정된 키로 바꾸세요: "G키로 변환하여 연주하시려면, 반주기 하단의 키 선택에서 '[실제 원곡 키]'를 누르세요."\n\n반드시 아래 JSON 형식으로만 응답하세요:\n{\n  "songTitle": "곡 제목",\n  "key": "판단된 원곡 키 (예: C, Eb, F# 등)",\n  "chords": ["C", "G", "Am", "Em", "F", "C", "F", "G", ... (최소 16개 이상)],\n  "summary": "1. [키 판단 근거 설명]\\n2. G키로 변환하여 연주하시려면, 반주기 하단의 키 선택에서 '[실제 원곡 키]'를 누르세요."\n}`;
-
-      const contentParts: any[] = [{ text: promptText }];
-      if (base64Image) {
-        contentParts.push({
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: base64Image
-          }
-        });
-      } else {
-        contentParts[0].text += '\n[시스템 경고: 악보 캡처 이미지가 제공되지 않았습니다. 반드시 제목과 정보를 바탕으로만 분석하세요.]';
-      }
-
-      for (const attempt of attempts) {
-        try {
-          console.log(`🚀 Trying AI Analysis with model: ${attempt.model} (${attempt.apiVersion})...`);
-          
-          // FIX: Use the model from the current attempt, NOT hardcoded
-          const model = genAI.getGenerativeModel({ model: attempt.model });
-
-          const generationConfig: any = {
-            temperature: 0.1,
-            maxOutputTokens: 2048,
-          };
-          
-          if (attempt.apiVersion === 'v1beta') {
-            generationConfig.responseMimeType = "application/json";
-          }
-
-          const result = await model.generateContent({
-            contents: [{ role: 'user', parts: contentParts }],
-            generationConfig
-          });
-
-          const response = await result.response;
-          let text = response.text().trim();
-          
-          // Safer JSON extraction for all models
-          if (text.includes('```')) {
-            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-          }
-          
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) text = jsonMatch[0];
-          
-          if (!text) {
-            throw new Error('AI 응답이 비어있습니다.');
-          }
-
-          const parsedData = JSON.parse(text);
-
-          const analysisResult = {
-            detectedKey: parsedData.key || 'C',
-            songTitle: parsedData.songTitle || normalizedInput,
-            chords: parsedData.chords || [],
-            url: playlistMatch?.url || (targetUrl.startsWith('http') ? targetUrl : normalizedInput),
-            summary: parsedData.summary
-          };
-
-          fetchCacheRef.current[cacheKey] = analysisResult;
-          setAnalysisResult(analysisResult);
-          console.log(`✅ SUCCESS with ${attempt.model} (${attempt.apiVersion})`);
-          setLoading(false);
-
-          // Restore autoApply logic: if triggered via magnifying glass, apply automatically
-          if (autoApply) {
-            setAutoApply(false);
-            console.log('⏳ Auto-applying analysis in 3 seconds...');
-            // Increase delay so user can actually read the summary
-            setTimeout(() => {
-              console.log('🚀 Executing auto-apply now (no autoplay)');
-              applyAnalysis(false); // Set to false to prevent auto-playing
-            }, 3000); 
-          }
-          return;
-        } catch (err: any) {
-          console.warn(`Catch error for ${attempt.model} (${attempt.apiVersion}):`, err?.message || err);
-          lastError = err;
-          // If it's a 429 (Quota), we might want to break early, but let's try other models first
-        }
-      }
-      throw lastError || new Error('모든 분석 시도 실패');
-    } catch (err: any) {
-      console.error('Failed to analyze:', err);
-      let errorMsg = err.message || "분석 중 오류가 발생했습니다.";
-      const isQuotaError = errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota exceeded') || errorMsg.toLowerCase().includes('too many requests') || errorMsg.toLowerCase().includes('quota');
-      if (isQuotaError) {
-        startRetryCountdown(normalizedInput);
-      } else {
-        setError(errorMsg);
-      }
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchQuery.trim();
     if (!query) return;
-
-    // 1. Search local playlist first (by title)
-    const localMatch = playlist.find(item =>
-      item.title.toLowerCase().includes(query.toLowerCase())
-    );
-
+    const localMatch = playlist.find(item => item.title.toLowerCase().includes(query.toLowerCase()));
     if (localMatch) {
       loadFromPlaylist(localMatch);
       setSearchQuery('');
       return;
     }
-
-    // 2. If not found in playlist, try AI analysis (URL or new title)
     fetchChords(query);
   };
 
   const applyAnalysis = (forcePlay: boolean = false) => {
     if (!analysisResult) return;
-
     const isSameUrl = url === analysisResult.url;
-
-    // Find if the song is already in the playlist
     const existingMatch = playlist.find(p => p.url === analysisResult.url || p.title === analysisResult.songTitle);
-
-    // [번화 보존 로직] 기존 제목에서 번호(01, 02 등)를 추출하여 보존합니다.
     const originalTitle = existingMatch ? existingMatch.title : analysisResult.songTitle;
     const numberMatch = originalTitle.match(/^\d+\s*/);
     const prefix = numberMatch ? numberMatch[0] : "";
-    
-    // AI 추천 제목 앞에 기존 번호를 붙입니다.
     const finalTitle = analysisResult.songTitle.startsWith(prefix.trim()) 
-      ? analysisResult.songTitle 
-      : prefix + analysisResult.songTitle;
+      ? analysisResult.songTitle : prefix + analysisResult.songTitle;
 
     const newItem: PlaylistItem = {
       id: existingMatch ? existingMatch.id : Date.now().toString(),
@@ -907,47 +743,26 @@ export default function App() {
       chords: analysisResult.chords
     };
 
-    console.log('📦 Applying Analysis:', newItem);
-    
-    // Set active values
     setUrl(newItem.url);
     setOriginalKey(newItem.originalKey);
     setChords(newItem.chords);
     setSongTitle(newItem.title);
-
-    // Auto-calculate transpose to reach G for the user
     const autoTranspose = getDistanceToG(newItem.originalKey);
-    console.log(`🎼 Auto-Transpose Calculated: ${autoTranspose} (Original: ${newItem.originalKey})`);
-    
-    // CRITICAL: Set pendingTransposeRef so the useEffect on [url] change doesn't reset it to 0
     pendingTransposeRef.current = autoTranspose;
     setTransposeAmount(autoTranspose);
     newItem.userTranspose = autoTranspose;
 
-    // Auto-update playlist (add to top if new, update if exists)
     setPlaylist(prev => {
       const exists = prev.find(p => p.id === newItem.id);
       const nextPlaylist = exists 
         ? prev.map(p => p.id === newItem.id ? { ...p, ...newItem } : p)
         : [newItem, ...prev];
-      
-      // [영구 저장] 분석 즉시 localStorage에 기록합니다.
       localStorage.setItem('g-transpose-playlist', JSON.stringify(nextPlaylist));
       return nextPlaylist;
     });
 
-    // [엔진 즉시 갱신] 곡이 같더라도 키가 바뀌었으므로 오디오 엔진을 새로 준비해야 할 수 있음
-    if (isSameUrl && autoTranspose !== 0) {
-      console.log('🔄 Same song but key changed, ensuring pitch shift is ready...');
-      // force re-init of pitch shifter if needed
-      if (playerRef.current) {
-        // pause briefly to reset pitch state if needed, or trigger re-init
-      }
-    }
-
     setSearchQuery('');
     setMobileView('player');
-
     if (forcePlay) {
       if (isSameUrl) setPlaying(true);
       else setPendingPlay(true);
@@ -955,31 +770,20 @@ export default function App() {
   };
 
   const loadFromPlaylist = (item: PlaylistItem, forcePlay = true) => {
-    console.log('🎵 Loading Song:', item.title, 'URL:', item.url);
     const isSameUrl = item.url === url;
-    // Store the desired transpose BEFORE setUrl triggers the url-change useEffect
     pendingTransposeRef.current = item.userTranspose ?? 0;
     setUrl(item.url);
     setOriginalKey(item.originalKey);
     setChords(item.chords);
     setSongTitle(item.title);
-
-    // Restore saved transpose for this song
     setTransposeAmount(item.userTranspose ?? 0);
-    setFinePitchCents(0); // Reset fine tune on song change
-
-    // Do NOT reorder on load, just set active states
-
-    // setAnalysisResult(null); // REMOVED to prevent flickering
+    setFinePitchCents(0);
     setSearchQuery('');
     setMobileView('player');
-
     if (forcePlay) {
       if (isSameUrl) setPlaying(true);
       else setPendingPlay(true);
     } else {
-      // 다른 곡으로 바꿀 때는 항상 일시정지 상태로 초기화
-      // (이전 곡이 재생 중이었어도 playing=false로 리셋 → 플레이 버튼 항상 표시)
       if (!isSameUrl) setPlaying(false);
     }
   };
@@ -988,6 +792,92 @@ export default function App() {
     e.stopPropagation();
     if (window.confirm("정말로 이 곡을 재생 목록에서 삭제할까요?")) {
       setPlaylist(prev => prev.filter(item => item.id !== id));
+    }
+  };
+
+  const fetchChords = async (query: string) => {
+    const apiKey = (userApiKey || import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+    if (!apiKey) {
+      setError('💡 AI 분석을 위해 Gemini API 키가 필요합니다. 설정에서 키를 확인해주세요.');
+      setShowApiSettings(true);
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setAnalysisResult(null);
+
+    let videoFrame: string | null = null;
+    if (playerRef.current) {
+      try {
+        const video = playerRef.current;
+        if (video.readyState < 2) {
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx?.drawImage(video, 0, 0);
+        videoFrame = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        console.log('📸 Video frame captured for AI analysis');
+      } catch (err) {
+        console.warn('⚠️ Frame capture failed:', err);
+      }
+    }
+
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const attempts = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
+      let responseText = '';
+      let usedModel = '';
+
+      const prompt = `이 노래의 제목은 '${songTitle}'입니다. 제공된 이미지(악보 프레임)가 있다면 그 악보를 분석하고, 없다면 당신의 음악 지식을 동원하여 이 노래의 전체 코드 진행(Chord Progression)을 8마디 이상 추출해 주세요. 반드시 다음 JSON 형식으로만 응답하세요: { "songTitle": "노래 제목", "originalKey": "C, D, E, F, G, A, B 중 하나", "chords": ["C", "F", "G7", "C", ...], "summary": "1. 분석 결과 한 문장\\n2. 자동 G코드 변환되었습니다" }`;
+
+      for (const modelName of attempts) {
+        try {
+          console.log(`🤖 Trying AI Analysis with: ${modelName}...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const parts: any[] = [{ text: prompt }];
+          if (videoFrame) {
+            parts.push({ inlineData: { data: videoFrame, mimeType: 'image/jpeg' } });
+          }
+
+          const result = await model.generateContent({
+            contents: [{ role: 'user', parts: parts }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: "application/json" }
+          });
+          
+          responseText = result.response.text() || '';
+          if (responseText) {
+            usedModel = modelName;
+            break;
+          }
+        } catch (err: any) {
+          console.warn(`❌ Model ${modelName} failed:`, err.message);
+        }
+      }
+
+      if (!responseText) throw new Error('AI 분석에 실패했습니다. 다시 시도해 주세요.');
+
+      const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanText);
+
+      const analysisResult = {
+        detectedKey: parsed.key || parsed.originalKey || 'C',
+        songTitle: parsed.songTitle || query,
+        chords: parsed.chords || [],
+        url: query,
+        summary: parsed.summary
+      };
+
+      setAnalysisResult(analysisResult);
+      console.log(`✅ SUCCESS with ${usedModel}`);
+    } catch (err: any) {
+      console.error('Analysis error:', err);
+      setError(err.message || '분석 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
     }
   };
 

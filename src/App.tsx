@@ -1070,12 +1070,12 @@ export default function App() {
       </div>
 
       <div className={cn(
-        "relative z-10 flex h-screen w-full p-4 md:p-6 gap-4 md:gap-6 overflow-hidden",
+        "relative z-10 flex h-screen w-full gap-0 overflow-hidden",
         "flex-col md:flex-row"
       )}>
         {/* 곡 목록 사이드바 */}
         <aside className={cn(
-          "w-full md:w-80 lg:w-96 flex flex-col bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[32px] overflow-hidden transition-all duration-500 ease-in-out z-20",
+          "w-full md:w-80 lg:w-[400px] flex flex-col bg-black/20 backdrop-blur-3xl transition-all duration-500 ease-in-out z-20",
           mobileView === 'player' ? "hidden md:flex" : "flex h-full"
         )}>
           {/* Sidebar Header */}
@@ -1116,7 +1116,7 @@ export default function App() {
           </div>
 
           {/* Playlist Content */}
-          <div className="flex-1 flex flex-col min-h-0 p-4">
+          <div className="flex-1 flex flex-col min-h-0 px-2 py-4">
             <div className="flex items-center justify-between px-1 mb-4">
               <div className="flex items-center gap-4">
                 <button
@@ -1136,7 +1136,7 @@ export default function App() {
                   )}
                 >
                   <Star className={cn("w-3 h-3", playlistTab === 'fav' ? "fill-yellow-400" : "")} />
-                  FAVS
+                  Favorites
                 </button>
               </div>
               <button

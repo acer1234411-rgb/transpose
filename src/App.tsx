@@ -24,7 +24,8 @@ import {
   Info,
   RotateCcw,
   Youtube,
-  Star
+  Star,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transposeChord, getSemitonesBetween, NOTES, getDistanceToG } from './lib/chordUtils';
@@ -68,6 +69,7 @@ interface PlaylistItem {
   chords: string[];
   userTranspose?: number; // Saved transpose offset
   isFavorite?: boolean;   // Favorite status
+  isChecked?: boolean;    // Completed/Played status
 }
 
 // [성능 최적화] 연주 중 화면 전체 Re-render를 방지하기 위한 별도 메모이제이션 컴포넌트
@@ -759,6 +761,13 @@ export default function App() {
     }
   };
 
+  const toggleCheck = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setPlaylist(prev => prev.map(item => 
+      item.id === id ? { ...item, isChecked: !item.isChecked } : item
+    ));
+  };
+
   const removeFromPlaylist = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (window.confirm("정말로 이 곡을 재생 목록에서 삭제할까요?")) {
@@ -1162,30 +1171,47 @@ export default function App() {
                       url === item.url && "bg-indigo-500/10 border-indigo-500/30"
                     )}
                   >
-                    <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
-                      {getYoutubeThumbnailUrl(item.url || '') ? (
-                        <img src={getYoutubeThumbnailUrl(item.url || '')!} className="w-full h-full rounded-lg object-cover opacity-80" alt="" />
-                      ) : (
-                        <div className="w-full h-full bg-white/5 rounded-lg flex items-center justify-center">
-                          <Music className="w-4 h-4 text-white/20" />
-                        </div>
+                    <button 
+                      onClick={(e) => toggleCheck(e, item.id)}
+                      className={cn(
+                        "w-5 h-5 shrink-0 rounded-[3px] border flex items-center justify-center transition-all relative overflow-hidden",
+                        item.isChecked 
+                          ? "bg-green-500/20 border-green-500/50 text-green-400" 
+                          : "bg-white/5 border-white/10 text-transparent hover:border-white/30"
                       )}
-                      {url === item.url && <div className="absolute -left-2 w-1 h-4 bg-indigo-500 rounded-full" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={cn("text-sm font-bold truncate", url === item.url ? "text-indigo-400" : "text-white/80")}>{item.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] text-white/20 uppercase font-bold">{item.originalKey || 'Key ?'}</span>
-                        {item.userTranspose !== 0 && item.userTranspose !== undefined && (
-                          <span className="text-[9px] px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md font-black">
-                            {item.userTranspose > 0 ? `+${item.userTranspose}` : item.userTranspose}
-                          </span>
-                        )}
+                    >
+                      <Check className={cn("w-3.5 h-3.5 transition-transform", item.isChecked ? "scale-100" : "scale-0")} strokeWidth={5} />
+                      {url === item.url && <div className="absolute inset-y-1 left-0 w-[1.5px] bg-indigo-500 rounded-full" />}
+                    </button>
+
+                    <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                      <p className={cn("text-sm font-bold truncate transition-colors", 
+                        url === item.url ? "text-indigo-400" : (item.isChecked ? "text-white/30" : "text-white/80")
+                      )}>
+                        {item.title}
+                      </p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-2 mr-2 pr-2 border-r border-white/5">
+                          <span className="text-[11px] text-white/40 uppercase font-black tracking-wider">{item.originalKey || '?'}</span>
+                          {item.userTranspose !== 0 && item.userTranspose !== undefined && (
+                            <span className="text-[11px] px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md font-black shadow-sm border border-indigo-500/10">
+                              {item.userTranspose > 0 ? `+${item.userTranspose}` : item.userTranspose}
+                            </span>
+                          )}
+                        </div>
+                        <button 
+                          onClick={(e) => toggleFavorite(e, item.id)} 
+                          className={cn("p-1.5 rounded-lg transition-all active:scale-90", item.isFavorite ? "text-yellow-400 bg-yellow-400/10" : "text-white/10 hover:text-white/30")}
+                        >
+                          <Star className={cn("w-3.5 h-3.5", item.isFavorite ? "fill-yellow-400" : "")} />
+                        </button>
+                        <button 
+                          onClick={(e) => removeFromPlaylist(e, item.id)} 
+                          className="p-1.5 text-white/10 hover:text-red-400 transition-all active:scale-90"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => toggleFavorite(e, item.id)} className={cn("p-1.5 rounded-lg", item.isFavorite ? "text-yellow-400" : "text-white/20")}><Star className="w-3.5 h-3.5" /></button>
-                      <button onClick={(e) => removeFromPlaylist(e, item.id)} className="p-1.5 text-white/20 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </motion.div>
                 ))}

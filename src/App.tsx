@@ -1512,7 +1512,7 @@ export default function App() {
               <video
                 ref={playerRef} className="w-full h-full object-contain"
                 src={url.includes('?') ? `${url}&t=0.001` : `${url}#t=0.001`}
-                controls preload="auto"
+                controls preload="auto" crossOrigin="anonymous"
                 onTimeUpdate={(e: any) => handleProgress({ playedSeconds: e.target.currentTime })}
                 onPlay={() => {
                   setPlaying(true);

@@ -124,8 +124,14 @@ const ChordDisplay = React.memo(({ chords, currentTime, transposeAmount }: any) 
 });
 
 export default function App() {
-  // Use Vite proxy to bypass R2 CORS limitations during development
-  const r2 = (filename: string) => `/r2-music/${encodeURIComponent(filename)}`;
+  // [배포 환경 대응] 개발 모드에서는 Proxy를 쓰고, 배포 후에는 실제 R2 URL을 직접 사용합니다.
+  const r2 = (filename: string) => {
+    const isProd = import.meta.env.PROD;
+    const baseUrl = isProd 
+      ? 'https://pub-cb7f6167a48441ff8887d8509ae0a500.r2.dev/G-Transpose'
+      : '/r2-music';
+    return `${baseUrl}/${encodeURIComponent(filename)}`;
+  };
 
   const [url, setUrl] = useState(r2('hongsi.mp4'));
   const [originalKey, setOriginalKey] = useState('C');

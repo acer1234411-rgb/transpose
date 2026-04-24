@@ -150,7 +150,7 @@ export default function App() {
   const [detectingAll, setDetectingAll] = useState(false);
   const [transposeAmount, setTransposeAmount] = useState(0);
   const [finePitchCents, setFinePitchCents] = useState(0);
-  const [userApiKey, setUserApiKey] = useState(() => localStorage.getItem('GEMINI_API_KEY') || 'AIzaSyDlx4By2XA35ILH08h6Kqo1IhWi3R6jZpo');
+  const [userApiKey, setUserApiKey] = useState(() => localStorage.getItem('GEMINI_API_KEY') || '');
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [autoApply, setAutoApply] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -813,11 +813,22 @@ export default function App() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const attempts = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
+      const attempts = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
       let responseText = '';
       let usedModel = '';
 
-      const prompt = `이 노래의 제목은 '${songTitle}'입니다. 제공된 이미지(악보 프레임)가 있다면 그 악보를 분석하고, 없다면 당신의 음악 지식을 동원하여 이 노래의 전체 코드 진행(Chord Progression)을 8마디 이상 추출해 주세요. 반드시 다음 JSON 형식으로만 응답하세요: { "songTitle": "노래 제목", "originalKey": "C, D, E, F, G, A, B 중 하나", "chords": ["C", "F", "G7", "C", ...], "summary": "1. 분석 결과 한 문장\\n2. 자동 G코드 변환되었습니다" }`;
+      const prompt = `당신은 전문 음악 분석가입니다. 
+1. 제공된 이미지(악보)를 정밀하게 분석하세요. 특히 오선지 왼쪽의 조표(Key Signature, 샵이나 플랫의 개수)를 보고 노래의 원래 키(Original Key)를 정확하게 판별하는 것이 가장 중요합니다.
+2. 이미지 분석이 불가능하거나 악보가 보이지 않는 경우에만 노래 제목('${query}')에 대한 당신의 음악 지식을 동원하세요.
+3. 노래의 전체 코드 진행(Chord Progression)을 최소 8마디 이상 추출해 주세요.
+
+반드시 다음 JSON 형식으로만 응답하세요:
+{
+  "songTitle": "노래 제목",
+  "originalKey": "C, C#, D, Eb, E, F, F#, G, Ab, A, Bb, B 중 하나",
+  "chords": ["C", "F", "G7", "C", ...],
+  "summary": "분석 근거(예: 조표에 플랫이 1개 있어 F키로 판별됨 등)를 포함한 한 문장 요약"
+}`;
 
       for (const modelName of attempts) {
         try {
@@ -912,19 +923,17 @@ export default function App() {
     if (!apiKey) { setError('API 키가 없습니다. .env 파일에 VITE_GEMINI_API_KEY를 설정해주세요.'); return; }
     setDetectingIds(prev => new Set(prev).add(item.id));
     try {
-      const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
+      const genAI = new GoogleGenerativeAI(apiKey);
       const cleanTitle = item.title.replace(/^\d+\s*/, '');
-      const attempts = ['gemini-2.5-flash', 'gemini-2.5', 'gemini-2.1', 'gemini-1.5-pro', 'gemini-1.5'];
+      const attempts = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-flash-latest'];
       let responseText = '';
 
       for (const modelName of attempts) {
         try {
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: `한국 노래 '${cleanTitle}'의 원래 도 키(Original Key)를 알려주세요. 반드시 다음 JSON 형식으로만 응답하세요: { "key": "C, D, E, F, G, A, B 중 하나" }`,
-            config: { temperature: 0.1, maxOutputTokens: 128 }
-          });
-          responseText = response.text || '';
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent(`한국 노래 '${cleanTitle}'의 원래 도 키(Original Key)를 알려주세요. 반드시 다음 JSON 형식으로만 응답하세요: { "key": "C, D, E, F, G, A, B 중 하나" }`);
+          const response = await result.response;
+          responseText = response.text() || '';
           if (responseText) break;
         } catch (err) {
           console.warn(`Key detection failed on ${modelName}:`, err);
@@ -952,9 +961,9 @@ export default function App() {
     const apiKey = getApiKey();
     if (!apiKey) { setError('API 키가 없습니다.'); return; }
     setDetectingAll(true);
-    const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
+    const genAI = new GoogleGenerativeAI(apiKey);
     const targets = playlist.filter(item => item.url);
-    const attempts = ['gemini-2.5-flash', 'gemini-2.5', 'gemini-2.1', 'gemini-1.5-pro', 'gemini-1.5'];
+    const attempts = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-flash-latest'];
     for (const item of targets) {
       try {
         const cleanTitle = item.title.replace(/^\d+\s*/, '');
@@ -962,12 +971,10 @@ export default function App() {
 
         for (const modelName of attempts) {
           try {
-            const response = await ai.models.generateContent({
-              model: modelName,
-              contents: `한국 노래 '${cleanTitle}'의 원래 도 키(Original Key)를 알려주세요. 반드시 다음 JSON 형식으로만 응답하세요: { "key": "C, D, E, F, G, A, B 중 하나" }`,
-              config: { temperature: 0.1, maxOutputTokens: 128 }
-            });
-            responseText = response.text || '';
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(`한국 노래 '${cleanTitle}'의 원래 도 키(Original Key)를 알려주세요. 반드시 다음 JSON 형식으로만 응답하세요: { "key": "C, D, E, F, G, A, B 중 하나" }`);
+            const response = await result.response;
+            responseText = response.text() || '';
             if (responseText) break;
           } catch (err) {
             console.warn(`Key detection failed on ${modelName}:`, err);
@@ -1324,10 +1331,7 @@ export default function App() {
                   
                   <div className="bg-white/5 border border-white/10 p-5 rounded-3xl w-full text-left">
                     <p className="text-indigo-100/90 text-sm leading-relaxed whitespace-pre-wrap">
-                      💡 {analysisResult.summary
-                        .replace(/1\.\s*/, '')      // 1. 제거
-                        .split(/2\.\s*/)[0]         // 2. 이후 내용 삭제
-                        .trim()}
+                      💡 {analysisResult.summary || '분석 결과가 없습니다.'}
                     </p>
                     <p className="text-green-400 text-xs font-bold mt-3 pt-3 border-t border-white/5">
                       ✓ 자동 G코드 변환되었습니다.

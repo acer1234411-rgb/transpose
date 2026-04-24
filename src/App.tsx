@@ -683,35 +683,6 @@ export default function App() {
     }, 1000);
   };
 
-  const fetchChords = async (input: string) => {
-    const normalizedInput = input.trim();
-    if (!normalizedInput) return;
-
-    if (retryTimerRef.current !== null) {
-      setError(`⏳ 재시도 대기 중입니다. ${retryCountdown}초 후에 다시 시도합니다.`);
-      return;
-    }
-
-    const cacheKey = normalizedInput.toLowerCase();
-    const cached = fetchCacheRef.current[cacheKey];
-    if (cached) {
-      setAnalysisResult(cached);
-      setError(null);
-      setLoading(false);
-      
-      // Fix: Also trigger autoApply on cache hit
-      if (autoApply) {
-        setAutoApply(false);
-        setTimeout(() => applyAnalysis(false), 500);
-      }
-      return;
-    }
-
-    setLoading(true);
-    setAnalysisResult(null);
-    setError(null);
-  };
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchQuery.trim();
@@ -796,6 +767,20 @@ export default function App() {
   };
 
   const fetchChords = async (query: string) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const cached = fetchCacheRef.current[normalizedQuery];
+    if (cached) {
+      console.log('🎯 Cache hit for:', normalizedQuery);
+      setAnalysisResult(cached);
+      setError(null);
+      setLoading(false);
+      if (autoApply) {
+        setAutoApply(false);
+        setTimeout(() => applyAnalysis(false), 500);
+      }
+      return;
+    }
+
     const apiKey = (userApiKey || import.meta.env.VITE_GEMINI_API_KEY || '').trim();
     if (!apiKey) {
       setError('💡 AI 분석을 위해 Gemini API 키가 필요합니다. 설정에서 키를 확인해주세요.');

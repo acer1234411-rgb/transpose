@@ -1602,14 +1602,6 @@ export default function App() {
                 }}
               />
             )}
-
-            {(!playing || playerRef.current?.paused) && (
-              <div className="absolute inset-0 bg-black/10 flex items-center justify-center z-10 cursor-pointer" onClick={() => playerRef.current?.play()}>
-                <div className="w-12 h-12 bg-white/20 border border-white/40 rounded-full flex items-center justify-center backdrop-blur-md hover:scale-110 transition-all shadow-xl">
-                  <Play className="w-5 h-5 fill-white ml-1 text-white" />
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Chord Display - [성능 최적화] 별도 컴포넌트로 분리하여 화면 전체 Re-render 방지 */}

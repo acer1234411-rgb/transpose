@@ -25,7 +25,9 @@ import {
   RotateCcw,
   Youtube,
   Star,
-  Check
+  Check,
+  Download,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transposeChord, getSemitonesBetween, NOTES, getDistanceToG } from './lib/chordUtils';
@@ -350,9 +352,16 @@ export default function App() {
             return merged;
           });
         }
-      } catch (e) { console.error('Load failed:', e); }
+      } catch (e) { 
+        console.error('Load failed:', e); 
+        // If data is corrupted, we don't set isLoaded yet to avoid overwriting immediately
+        // But for safety, we should probably still allow the app to work.
+      }
     }
-    setIsLoaded(true);
+    
+    // [보안강화] 데이터 로딩이 확실히 끝난 후에만 저장을 허용하도록 딜레이를 줍니다.
+    const timer = setTimeout(() => setIsLoaded(true), 500);
+    return () => clearTimeout(timer);
   }, []);
 
   // Handle auto-play for new song selection
@@ -405,6 +414,52 @@ export default function App() {
       return matchesSearch;
     });
   }, [playlist, playlistSearch, playlistTab]);
+
+  // [데이터 백업] 현재 재생 목록을 JSON 파일로 저장합니다.
+  const exportPlaylist = () => {
+    try {
+      const dataStr = JSON.stringify(playlist, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `g-transpose-backup-${new Date().toISOString().slice(0,10)}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      console.log('✅ Playlist exported successfully');
+    } catch (e) {
+      console.error('Export failed:', e);
+      setError('백업 파일 생성에 실패했습니다.');
+    }
+  };
+
+  // [데이터 복구] JSON 파일을 읽어와 재생 목록을 복구합니다.
+  const importPlaylist = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (Array.isArray(json)) {
+          if (window.confirm(`${json.length}개의 곡이 포함된 백업 파일을 불러올까요? 현재 목록이 대체됩니다.`)) {
+            setPlaylist(json);
+            localStorage.setItem('g-transpose-playlist', JSON.stringify(json));
+            alert('성공적으로 복구되었습니다.');
+            window.location.reload();
+          }
+        } else {
+          throw new Error('올바른 백업 파일 형식이 아닙니다.');
+        }
+      } catch (err) {
+        console.error('Import failed:', err);
+        setError('파일을 불러오는 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const [analysisResult, setAnalysisResult] = useState<{
     detectedKey: string;
@@ -1300,11 +1355,32 @@ export default function App() {
                           window.location.reload();
                         }
                       }}
-                      className="w-full py-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-400 text-[11px] font-black hover:bg-red-500/30 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-[11px] font-black hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 mb-2"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       곡 목록 초기화 (46곡 복구)
                     </button>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={exportPlaylist}
+                        className="py-3 bg-indigo-500/20 border border-indigo-500/30 rounded-xl text-indigo-400 text-[11px] font-black hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        백업 (파일 저장)
+                      </button>
+                      
+                      <label className="py-3 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 text-[11px] font-black hover:bg-green-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer text-center">
+                        <Upload className="w-3.5 h-3.5" />
+                        복구 (파일 선택)
+                        <input
+                          type="file"
+                          accept=".json"
+                          onChange={importPlaylist}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                 </motion.div>
               )}

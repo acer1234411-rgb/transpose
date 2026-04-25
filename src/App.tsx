@@ -915,7 +915,7 @@ export default function App() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const attempts = ['gemini-2.0-flash-001']; // 안정적인 정식 버전 Gemini 2.0 Flash 사용
+      const attempts = ['gemini-2.5-flash']; // 성능이 가장 검증된 Gemini 2.5 Flash 모델 사용
       let responseText = '';
       let usedModel = '';
 
@@ -1027,7 +1027,7 @@ export default function App() {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       const cleanTitle = item.title.replace(/^\d+\s*/, '');
-      const attempts = ['gemini-2.0-flash-001'];
+      const attempts = ['gemini-2.5-flash'];
       let responseText = '';
 
       for (const modelName of attempts) {
@@ -1065,7 +1065,7 @@ export default function App() {
     setDetectingAll(true);
     const genAI = new GoogleGenerativeAI(apiKey);
     const targets = playlist.filter(item => item.url);
-    const attempts = ['gemini-2.0-flash-001'];
+    const attempts = ['gemini-2.5-flash'];
     for (const item of targets) {
       try {
         const cleanTitle = item.title.replace(/^\d+\s*/, '');
